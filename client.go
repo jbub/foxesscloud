@@ -50,13 +50,22 @@ type Client struct {
 }
 
 const (
-	errNoNoError      = 0
-	errNoTokenExpired = 41808
-	errNoTokenInvalid = 41809
-	errHeadersMissing = 40256
-	errBodyInvalid    = 40257
-	errRateLimit      = 40400
+	errNoNoError           = 0
+	errNoTokenExpired      = 41808
+	errNoTokenInvalid      = 41809
+	errHeadersMissing      = 40256
+	errBodyInvalid         = 40257
+	errRequestsTooFrequent = 40400
+	errRateLimitExceeded   = 40402
 )
+
+type RateLimitExceededError struct {
+	msg string
+}
+
+func (e *RateLimitExceededError) Error() string {
+	return fmt.Sprintf("rate limit exceeded: %s", e.msg)
+}
 
 type errorResponse struct {
 	ErrNo int    `json:"errno"`
@@ -89,8 +98,10 @@ func (c *Client) do(req *http.Request, res any) (*http.Response, error) {
 		return nil, fmt.Errorf("missing headers: %v", errResp.Msg)
 	case errBodyInvalid:
 		return nil, fmt.Errorf("invalid body: %v", errResp.Msg)
-	case errRateLimit:
+	case errRequestsTooFrequent:
 		return nil, fmt.Errorf("rate limit exceeded: %v", errResp.Msg)
+	case errRateLimitExceeded:
+		return nil, &RateLimitExceededError{msg: errResp.Msg}
 	default:
 		return nil, fmt.Errorf("invalid response, got error code: %v, message: %v", errResp.ErrNo, errResp.Msg)
 	}
